@@ -1,14 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 // ============================================================
-//  CONFIG — À personnaliser ici
+//  CONFIG
 // ============================================================
 const CONFIG = {
   startDate: new Date("2023-02-14T00:00:00"),
-  coupleNames: "Toi & Moi",
+  coupleNames: "Just for you",
   subtitle: "Une histoire à deux",
   loveMessage: "Avec toi, chaque instant devient un souvenir que je veux garder pour toujours.",
-  musicUrl: "", // URL MP3 direct optionnel
+  musicUrl: "",
 };
 
 const QUOTES = [
