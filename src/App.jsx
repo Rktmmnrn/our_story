@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 //  CONFIG
 // ============================================================
 const CONFIG = {
-  startDate: new Date("2023-02-14T00:00:00"),
+  startDate: new Date("2025-04-21T00:00:00"),
   coupleNames: "Just for you",
   subtitle: "Une histoire à deux",
   loveMessage: "Avec toi, chaque instant devient un souvenir que je veux garder pour toujours.",
