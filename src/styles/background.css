@@ -1,0 +1,94 @@
+/* ====================== BACKGROUND AMBIANCE : CONSTELLATION ROMANTIQUE ====================== */
+/* À ajouter dans src/index.css (ou votre fichier CSS global) */
+/* Usage : <div class="landing-bg-constellation" /> dans LandingPage.tsx */
+/* 100% CSS pur – zéro JS / canvas – ultra-léger (opacity + radial-gradient) */
+
+.landing-bg-constellation {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+
+  /* === LIGNES COURBES DORÉES (3-4 courbes très légères) === */
+  /* SVG inline via data URL – parfaitement responsive grâce au viewBox */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1920' height='1080' viewBox='0 0 1920 1080'%3E%3Cpath d='M 154,130 Q 420,40 730,194 Q 1000,120 1056,97' fill='transparent' stroke='rgba(201,168,76,0.15)' stroke-width='1.5' stroke-linecap='round'/%3E%3Cpath d='M 230,346 Q 480,420 922,302 Q 1150,380 1363,508' fill='transparent' stroke='rgba(201,168,76,0.15)' stroke-width='1.5' stroke-linecap='round'/%3E%3Cpath d='M 365,853 Q 580,720 787,886 Q 1050,810 1286,713' fill='transparent' stroke='rgba(201,168,76,0.15)' stroke-width='1.5' stroke-linecap='round'/%3E%3Cpath d='M 80,580 Q 320,720 550,520 Q 820,650 1100,620' fill='transparent' stroke='rgba(201,168,76,0.15)' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-size: 100% 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* === ÉTOILES STATIQUES (20 étoiles fixes) === */
+.landing-bg-constellation::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    /* 25 petites étoiles lumineuses (positions en % → responsive) */
+    radial-gradient(6px circle at 8% 12%, rgba(201,168,76,0.15) 0%, transparent 65%),
+    radial-gradient(6px circle at 22% 7%, rgba(201,168,76,0.15) 0%, transparent 65%),
+    radial-gradient(6px circle at 38% 18%, rgba(201,168,76,0.15) 0%, transparent 65%),
+    radial-gradient(6px circle at 55% 9%, rgba(201,168,76,0.15) 0%, transparent 65%),
+    radial-gradient(6px circle at 78% 22%, rgba(201,168,76,0.15) 0%, transparent 65%),
+    radial-gradient(6px circle at 12% 32%, rgba(201,168,76,0.15) 0%, transparent 65%),
+    radial-gradient(6px circle at 29% 41%, rgba(201,168,76,0.15) 0%, transparent 65%),
+    radial-gradient(6px circle at 48% 28%, rgba(201,168,76,0.15) 0%, transparent 65%),
+    radial-gradient(6px circle at 71% 47%, rgba(201,168,76,0.15) 0%, transparent 65%),
+    radial-gradient(6px circle at 85% 35%, rgba(201,168,76,0.15) 0%, transparent 65%),
+    radial-gradient(6px circle at 6% 58%, rgba(201,168,76,0.15) 0%, transparent 65%),
+    radial-gradient(6px circle at 27% 62%, rgba(201,168,76,0.15) 0%, transparent 65%),
+    radial-gradient(6px circle at 46% 51%, rgba(201,168,76,0.15) 0%, transparent 65%),
+    radial-gradient(6px circle at 67% 66%, rgba(201,168,76,0.15) 0%, transparent 65%),
+    radial-gradient(6px circle at 81% 73%, rgba(201,168,76,0.15) 0%, transparent 65%),
+    radial-gradient(6px circle at 19% 79%, rgba(201,168,76,0.15) 0%, transparent 65%),
+    radial-gradient(6px circle at 41% 82%, rgba(201,168,76,0.15) 0%, transparent 65%),
+    radial-gradient(6px circle at 59% 88%, rgba(201,168,76,0.15) 0%, transparent 65%),
+    radial-gradient(6px circle at 89% 81%, rgba(201,168,76,0.15) 0%, transparent 65%),
+    radial-gradient(6px circle at 14% 91%, rgba(201,168,76,0.15) 0%, transparent 65%),
+    radial-gradient(6px circle at 33% 5%, rgba(201,168,76,0.15) 0%, transparent 65%),
+    radial-gradient(6px circle at 64% 16%, rgba(201,168,76,0.15) 0%, transparent 65%),
+    radial-gradient(6px circle at 76% 54%, rgba(201,168,76,0.15) 0%, transparent 65%),
+    radial-gradient(6px circle at 4% 45%, rgba(201,168,76,0.15) 0%, transparent 65%),
+    radial-gradient(6px circle at 91% 63%, rgba(201,168,76,0.15) 0%, transparent 65%);
+  background-repeat: no-repeat;
+}
+
+/* === ÉTOILES PULSANTES (8 points sélectionnés – animation légère de pulsation) */
+.landing-bg-constellation::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    /* 8 étoiles qui pulsent (même style, positions choisies pour l’effet romantique) */
+    radial-gradient(6px circle at 22% 7%, rgba(201,168,76,0.15) 0%, transparent 65%),
+    radial-gradient(6px circle at 55% 9%, rgba(201,168,76,0.15) 0%, transparent 65%),
+    radial-gradient(6px circle at 71% 47%, rgba(201,168,76,0.15) 0%, transparent 65%),
+    radial-gradient(6px circle at 46% 51%, rgba(201,168,76,0.15) 0%, transparent 65%),
+    radial-gradient(6px circle at 67% 66%, rgba(201,168,76,0.15) 0%, transparent 65%),
+    radial-gradient(6px circle at 41% 82%, rgba(201,168,76,0.15) 0%, transparent 65%),
+    radial-gradient(6px circle at 59% 88%, rgba(201,168,76,0.15) 0%, transparent 65%),
+    radial-gradient(6px circle at 33% 5%, rgba(201,168,76,0.15) 0%, transparent 65%);
+  background-repeat: no-repeat;
+
+  /* Animation de pulsation légère (opacity seulement → zéro impact perf, pas de scale GPU) */
+  animation: constellation-pulse 6.5s ease-in-out infinite;
+}
+
+/* ====================== ANIMATION ====================== */
+@keyframes constellation-pulse {
+  0%, 100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* ====================== FIN DU BLOC ====================== */
+/* Le fond est maintenant complètement autonome, romantique, luxueux et minimaliste */
+/* Compatible avec votre palette (--or, --rose) et vos polices Cormorant/Jost */

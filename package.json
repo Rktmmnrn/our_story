@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "build:analyze": "tsc && vite build --mode analyze",
+    "preview": "vite preview",
+    "preview:prod": "vite preview --port 4173 --host",
+    "optimize": "vite optimize"
   },
   "dependencies": {
     "react": "^18.3.1",
