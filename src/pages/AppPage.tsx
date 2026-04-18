@@ -198,6 +198,7 @@ export default function AppPage() {
         couple={couple}
         onLogout={handleLogout}
         onInvite={() => setShowInvite(true)}
+        onCoupleUpdated={(c) => setCoupleLocal(c)}
       />
 
       <HeroSection couple={couple} timer={timer} user={user} />
