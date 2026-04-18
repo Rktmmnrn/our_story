@@ -1,84 +1,71 @@
-import React, { useState, useCallback } from 'react';
-import { QUOTES, DEFAULT_TIMELINE } from './constants';
-import type { TimelineItem } from './types';
+import React, { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
+import { useAuthStore } from './store/authStore';
 
-import IntroScreen from './components/IntroScreen';
-import Navbar from './components/Navbar';
-import HeroSection from './components/HeroSection';
-import GalerieSection from './components/GalerieSection';
-import TimelineSection from './components/TimelineSection';
-import MessageSection from './components/MessageSection';
-import MusicButton from './components/MusicButton';
-import Lightbox from './components/Lightbox';
+import LandingPage from './pages/LandingPage';
+import AppPage from './pages/AppPage';
+import AdminPage from './pages/AdminPage';
+import JoinPage from './pages/JoinPage';
+import ProtectedRoute from './components/ProtectedRoute';
 
-// ============================================================
-//  APP
-// ============================================================
-function App(): React.JSX.Element {
-  const [entered, setEntered] = useState(false);
+export default function App() {
+  const { isAuthenticated, user, fetchMe } = useAuthStore();
 
-  const [photos, setPhotos] = useState<string[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem('nh_photos') ?? '[]') as string[];
-    } catch {
-      return [];
-    }
-  });
-
-  const [moments, setMoments] = useState<TimelineItem[]>(() => {
-    try {
-      return (
-        (JSON.parse(localStorage.getItem('nh_timeline') ?? 'null') as TimelineItem[] | null) ??
-        DEFAULT_TIMELINE
-      );
-    } catch {
-      return DEFAULT_TIMELINE;
-    }
-  });
-
-  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
-  const [quote] = useState<string>(
-    () => QUOTES[Math.floor(Math.random() * QUOTES.length)]
-  );
-
-  const addPhotos = useCallback((newOnes: string[]): void => {
-    setPhotos((prev) => {
-      const updated = [...prev, ...newOnes];
-      localStorage.setItem('nh_photos', JSON.stringify(updated));
-      return updated;
-    });
+  useEffect(() => {
+    if (isAuthenticated && !user) fetchMe();
   }, []);
 
-  const addMoment = useCallback((item: TimelineItem): void => {
-    setMoments((prev) => {
-      const updated = [...prev, item];
-      localStorage.setItem('nh_timeline', JSON.stringify(updated));
-      return updated;
-    });
-  }, []);
+  // Handle pending join after login
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      const pendingToken = sessionStorage.getItem('pending_join_token');
+      if (pendingToken) {
+        sessionStorage.removeItem('pending_join_token');
+        window.location.href = `/join/${pendingToken}`;
+      }
+    }
+  }, [isAuthenticated, user]);
 
   return (
-    <>
-      {!entered && <IntroScreen onEnter={() => setEntered(true)} />}
-      {entered && (
-        <>
-          <Navbar />
-          <HeroSection quote={quote} />
-          <GalerieSection photos={photos} onAddPhotos={addPhotos} onLightbox={setLightboxSrc} />
-          <TimelineSection moments={moments} onAddMoment={addMoment} />
-          <MessageSection />
-          <footer className="footer">
-            <p>
-              Fait avec <span style={{ color: '#d4607a' }}>♡</span> rien que pour toi · Notre
-              Histoire
-            </p>
-          </footer>
-          <MusicButton />
-          <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
-        </>
-      )}
-    </>
+    <BrowserRouter>
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          style: {
+            fontFamily: "'Jost', sans-serif",
+            background: '#2a1a20',
+            color: '#fdf8f2',
+            border: '0.5px solid rgba(201,168,76,0.3)',
+            borderRadius: '2px',
+            fontSize: '13px',
+            letterSpacing: '0.05em',
+          },
+          success: { iconTheme: { primary: '#d4607a', secondary: '#fdf8f2' } },
+          error: { iconTheme: { primary: '#c0392b', secondary: '#fdf8f2' } },
+        }}
+      />
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/join/:token" element={<JoinPage />} />
+        <Route
+          path="/app"
+          element={
+            <ProtectedRoute>
+              <AppPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute adminOnly>
+              <AdminPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
-
-export default App;

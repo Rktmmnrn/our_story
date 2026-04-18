@@ -1,27 +1,19 @@
-import { useState, useEffect, RefObject } from 'react';
+import { useState, useEffect, useRef, RefObject } from 'react';
 
-// ============================================================
-//  HOOK — useIntersection
-// ============================================================
-function useIntersection(
-  ref: RefObject<Element | null>,
+export function useIntersection(
   options: IntersectionObserverInit = {}
-): boolean {
+): [RefObject<any>, boolean] {
+  const ref = useRef<Element>(null);
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
     const obs = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) setVisible(true);
-      },
+      ([entry]) => { if (entry.isIntersecting) setVisible(true); },
       options
     );
     if (ref.current) obs.observe(ref.current);
     return () => obs.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ref]);
+  }, []);
 
-  return visible;
+  return [ref, visible];
 }
-
-export default useIntersection;
