@@ -1,4 +1,6 @@
 import React, { useRef, useState, useCallback } from 'react';
+import { useDropzone } from 'react-dropzone';
+import { useImageCompressor } from '../../hooks/useImageCompressor';
 import { useIntersection } from '../../hooks/useIntersection';
 import type { MediaItem } from '../../types';
 import { mediaApi } from '../../services/api';
@@ -21,6 +23,7 @@ export default function GalerieSection({ photos, onUpload, onDelete, onLightbox 
   const [headerRef, headerVisible] = useIntersection({ threshold: 0.15 });
   const placeholders = Math.max(6 - photos.length, 0);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+  const { compressImage } = useImageCompressor();
 
   const handleProgress = useCallback((file: File, percent: number) => {
     setUploadProgress(prev => {
@@ -35,29 +38,26 @@ export default function GalerieSection({ photos, onUpload, onDelete, onLightbox 
     });
   }, []);
 
-  const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    if (files.length) {
-      const init: Record<string, number> = {};
-      files.forEach(f => { init[f.name] = 0; });
-      setUploadProgress(prev => ({ ...prev, ...init }));
-      onUpload(files, handleProgress);
-    }
-    e.target.value = '';
-  };
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    const init: Record<string, number> = {};
+    acceptedFiles.forEach(f => { init[f.name] = 0; });
+    setUploadProgress(prev => ({ ...prev, ...init }));
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    const files = Array.from(e.dataTransfer.files).filter(
-      f => f.type.startsWith('image/') || f.type.startsWith('video/')
+    const filesToUpload = await Promise.all(
+      acceptedFiles.map(file => compressImage(file))
     );
-    if (files.length) {
-      const init: Record<string, number> = {};
-      files.forEach(f => { init[f.name] = 0; });
-      setUploadProgress(prev => ({ ...prev, ...init }));
-      onUpload(files, handleProgress);
-    }
-  };
+
+    onUpload(filesToUpload, handleProgress);
+  }, [compressImage, onUpload, handleProgress]);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    accept: { 'image/*': [], 'video/*': [] },
+    maxSize: 200 * 1024 * 1024, // 200 Mo max par fichier
+    onDrop,
+    multiple: true,
+    noClick: true,
+    noKeyboard: true,
+  });
 
   const activeUploads = Object.entries(uploadProgress).filter(([, p]) => p < 100);
 
@@ -69,7 +69,7 @@ export default function GalerieSection({ photos, onUpload, onDelete, onLightbox 
         <div className="divider" />
       </div>
 
-      {activeUploads.length > 0 && (
+      {/* {activeUploads.length > 0 && (
         <div className="upload-progress-container">
           {activeUploads.map(([name, percent]) => (
             <div key={name} className="upload-progress-item">
@@ -85,13 +85,13 @@ export default function GalerieSection({ photos, onUpload, onDelete, onLightbox 
             </div>
           ))}
         </div>
-      )}
+      )} */}
 
       <div
-        className="photo-grid"
-        onDragOver={e => e.preventDefault()}
-        onDrop={handleDrop}
+        {...getRootProps()}
+        className={`photo-grid ${isDragActive ? 'drop-active' : ''}`}
       >
+        <input {...getInputProps()} />
         {photos.map((item, i) => (
           <MediaCard
             key={item.id}
@@ -114,7 +114,19 @@ export default function GalerieSection({ photos, onUpload, onDelete, onLightbox 
           accept="image/*,video/*"
           multiple
           style={{ display: 'none' }}
-          onChange={handleFiles}
+          onChange={async (e) => {
+            const files = Array.from(e.target.files ?? []);
+            if (!files.length) return;
+
+            const init: Record<string, number> = {};
+            files.forEach(f => { init[f.name] = 0; });
+            setUploadProgress(prev => ({ ...prev, ...init }));
+
+            const filesToUpload = await Promise.all(files.map(f => compressImage(f)));
+
+            onUpload(filesToUpload, handleProgress);
+            e.target.value = '';
+          }}
         />
         <button className="outline-btn" onClick={() => fileRef.current?.click()}>
           + Ajouter des photos / vidéos

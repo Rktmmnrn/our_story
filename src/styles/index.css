@@ -778,3 +778,8 @@ body {
 .nav-dropdown-divider { height: 0.5px; background: var(--border); margin: 4px 0; }
 .nav-dropdown-logout { color: #c0392b !important; }
 .nav-dropdown-logout:hover { background: rgba(192,57,43,0.06) !important; }
+.photo-grid.drop-active {
+  background: rgba(212, 96, 122, 0.08);
+  border: 2px dashed var(--rose-deep);
+  transition: all 0.2s;
+}

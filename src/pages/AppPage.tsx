@@ -90,10 +90,6 @@ export default function AppPage() {
     try { setTimer(await coupleApi.timer()); } catch { /* ignore */ }
   };
 
-  // Déterminer le type de média selon le MIME type du fichier
-  const getMediaType = (file: File): 'photo' | 'video' =>
-    file.type.startsWith('video/') ? 'video' : 'photo';
-
   const handleMediaUpload = useCallback(async (
     files: File[],
     onProgress: (file: File, percent: number) => void,
@@ -101,16 +97,18 @@ export default function AppPage() {
     uploadCountRef.current += files.length;
     const toastId = toast.loading(`Upload de ${files.length} fichier(s)...`);
 
-    const BATCH = 3;
+    // Batch adaptatif selon la connexion
+    const effectiveType = (navigator as any).connection?.effectiveType;
+    const BATCH_SIZE = effectiveType === '4g' || effectiveType === '5g' ? 5 : 3;
     try {
-      for (let i = 0; i < files.length; i += BATCH) {
-        const batch = files.slice(i, i + BATCH);
+      for (let i = 0; i < files.length; i += BATCH_SIZE) {
+        const batch = files.slice(i, i + BATCH_SIZE);
         await Promise.all(
           batch.map(async file => {
             try {
               await mediaApi.upload(
                 file,
-                getMediaType(file),   // ← type correct selon le fichier
+                file.type.startsWith('video/') ? 'video' : 'photo',
                 undefined,
                 (percent) => onProgress(file, percent),
               );
