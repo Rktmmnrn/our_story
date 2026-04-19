@@ -22,38 +22,34 @@ export default function AppPage() {
 
   const [couple, setCoupleLocal] = useState<Couple | null>(null);
   const [timer, setTimer] = useState<CoupleTimer | null>(null);
-  const [photos, setPhotos] = useState<MediaItem[]>([]);
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [tracks, setTracks] = useState<MusicTrack[]>([]);
   const [dates, setDates] = useState<SpecialDate[]>([]);
   const [quotes, setQuotes] = useState<Quote[]>([]);
-  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [lightbox, setLightbox] = useState<{ src: string; type: 'photo' | 'video' } | null>(null);
   const [showSetup, setShowSetup] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTrackId, setActiveTrackId] = useState<string | null>(null);
 
-  // Suivi des uploads en cours pour bloquer le refresh navigateur
+  // Compteur d'uploads en cours pour bloquer le refresh navigateur
   const uploadCountRef = useRef(0);
 
-  // Bloquer la fermeture/refresh pendant un upload
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
       if (uploadCountRef.current > 0) {
         e.preventDefault();
         e.returnValue = 'Des uploads sont en cours. Voulez-vous vraiment quitter ?';
-        return e.returnValue;
       }
     };
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
   }, []);
 
-  // Redirect admin
   useEffect(() => {
     if (user?.role === 'admin') navigate('/admin');
   }, [user, navigate]);
 
-  // Load couple
   useEffect(() => {
     const init = async () => {
       try {
@@ -68,14 +64,13 @@ export default function AppPage() {
           quotesApi.list(),
         ]);
         setTimer(t);
-        setPhotos(mediaRes.data.filter(m => m.media_type === 'photo'));
+        // Garder photos ET vidéos
+        setMediaItems(mediaRes.data);
         setTracks(musicRes);
         setDates(datesRes);
         setQuotes(quotesRes);
       } catch (err: any) {
-        if (err?.response?.status === 403) {
-          setShowSetup(true);
-        }
+        if (err?.response?.status === 403) setShowSetup(true);
       } finally {
         setLoading(false);
       }
@@ -92,41 +87,42 @@ export default function AppPage() {
     setCoupleLocal(c);
     setCouple(c);
     setShowSetup(false);
-    try {
-      const t = await coupleApi.timer();
-      setTimer(t);
-    } catch { /* ignore */ }
+    try { setTimer(await coupleApi.timer()); } catch { /* ignore */ }
   };
 
-  // Upload avec progression et protection contre le refresh
-  const handlePhotoUpload = useCallback(async (
+  // Déterminer le type de média selon le MIME type du fichier
+  const getMediaType = (file: File): 'photo' | 'video' =>
+    file.type.startsWith('video/') ? 'video' : 'photo';
+
+  const handleMediaUpload = useCallback(async (
     files: File[],
     onProgress: (file: File, percent: number) => void,
   ) => {
     uploadCountRef.current += files.length;
-    const toastId = toast.loading(`Upload de ${files.length} photo(s)...`);
+    const toastId = toast.loading(`Upload de ${files.length} fichier(s)...`);
 
+    const BATCH = 3;
     try {
-      // Upload en parallèle (max 3 simultanés pour ne pas saturer)
-      const BATCH = 3;
       for (let i = 0; i < files.length; i += BATCH) {
         const batch = files.slice(i, i + BATCH);
         await Promise.all(
-          batch.map(file =>
-            mediaApi.upload(
-              file,
-              'photo',
-              undefined,
-              (percent) => onProgress(file, percent),
-            ).finally(() => {
+          batch.map(async file => {
+            try {
+              await mediaApi.upload(
+                file,
+                getMediaType(file),   // ← type correct selon le fichier
+                undefined,
+                (percent) => onProgress(file, percent),
+              );
+            } finally {
               uploadCountRef.current = Math.max(0, uploadCountRef.current - 1);
-            })
-          )
+            }
+          })
         );
       }
       const res = await mediaApi.list(1, 50);
-      setPhotos(res.data.filter(m => m.media_type === 'photo'));
-      toast.success('Photos ajoutées ♡', { id: toastId });
+      setMediaItems(res.data);
+      toast.success('Fichiers ajoutés ♡', { id: toastId });
     } catch {
       toast.error('Erreur lors de l\'upload', { id: toastId });
       uploadCountRef.current = 0;
@@ -136,11 +132,15 @@ export default function AppPage() {
   const handlePhotoDelete = useCallback(async (id: string) => {
     try {
       await mediaApi.delete(id);
-      setPhotos(prev => prev.filter(p => p.id !== id));
-      toast.success('Photo supprimée');
+      setMediaItems(prev => prev.filter(p => p.id !== id));
+      toast.success('Fichier supprimé');
     } catch {
       toast.error('Impossible de supprimer');
     }
+  }, []);
+
+  const handleLightbox = useCallback((id: string, type: 'photo' | 'video') => {
+    setLightbox({ src: mediaApi.getFileUrl(id), type });
   }, []);
 
   const handleMusicUpload = useCallback(async (file: File, title: string, artist?: string) => {
@@ -148,10 +148,7 @@ export default function AppPage() {
     uploadCountRef.current += 1;
     try {
       const track = await musicApi.upload(file, title, artist, (percent) => {
-        // Mise à jour du toast avec le pourcentage
-        if (percent < 100) {
-          toast.loading(`Upload ${percent}%...`, { id: toastId });
-        }
+        if (percent < 100) toast.loading(`Upload ${percent}%...`, { id: toastId });
       });
       setTracks(prev => [track, ...prev]);
       toast.success('Musique ajoutée ♡', { id: toastId });
@@ -167,9 +164,7 @@ export default function AppPage() {
       await musicApi.delete(id);
       setTracks(prev => prev.filter(t => t.id !== id));
       toast.success('Piste supprimée');
-    } catch {
-      toast.error('Impossible de supprimer');
-    }
+    } catch { toast.error('Impossible de supprimer'); }
   }, []);
 
   const handleDateCreate = useCallback(async (payload: {
@@ -177,12 +172,9 @@ export default function AppPage() {
   }) => {
     try {
       await datesApi.create(payload);
-      const updated = await datesApi.list();
-      setDates(updated);
+      setDates(await datesApi.list());
       toast.success('Moment ajouté ♡');
-    } catch {
-      toast.error('Erreur lors de l\'ajout');
-    }
+    } catch { toast.error('Erreur lors de l\'ajout'); }
   }, []);
 
   const handleDateDelete = useCallback(async (id: string) => {
@@ -190,29 +182,22 @@ export default function AppPage() {
       await datesApi.delete(id);
       setDates(prev => prev.filter(d => d.id !== id));
       toast.success('Moment supprimé');
-    } catch {
-      toast.error('Impossible de supprimer');
-    }
+    } catch { toast.error('Impossible de supprimer'); }
   }, []);
 
   const handleQuoteCreate = useCallback(async (text: string, author?: string) => {
     try {
       await quotesApi.create(text, author);
-      const updated = await quotesApi.list();
-      setQuotes(updated);
+      setQuotes(await quotesApi.list());
       toast.success('Citation ajoutée ♡');
-    } catch {
-      toast.error('Erreur lors de l\'ajout');
-    }
+    } catch { toast.error('Erreur lors de l\'ajout'); }
   }, []);
 
   const handleQuoteToggleFav = useCallback(async (id: string, current: boolean) => {
     try {
       await quotesApi.update(id, { is_favorite: !current });
       setQuotes(prev => prev.map(q => q.id === id ? { ...q, is_favorite: !current } : q));
-    } catch {
-      toast.error('Erreur');
-    }
+    } catch { toast.error('Erreur'); }
   }, []);
 
   const handleQuoteDelete = useCallback(async (id: string) => {
@@ -220,9 +205,7 @@ export default function AppPage() {
       await quotesApi.delete(id);
       setQuotes(prev => prev.filter(q => q.id !== id));
       toast.success('Citation supprimée');
-    } catch {
-      toast.error('Impossible de supprimer');
-    }
+    } catch { toast.error('Impossible de supprimer'); }
   }, []);
 
   if (loading) {
@@ -247,17 +230,13 @@ export default function AppPage() {
       <HeroSection couple={couple} timer={timer} user={user} />
 
       <GalerieSection
-        photos={photos}
-        onUpload={handlePhotoUpload}
+        photos={mediaItems}
+        onUpload={handleMediaUpload}
         onDelete={handlePhotoDelete}
-        onLightbox={id => setLightboxSrc(mediaApi.getFileUrl(id))}
+        onLightbox={handleLightbox}
       />
 
-      <TimelineSection
-        dates={dates}
-        onAdd={handleDateCreate}
-        onDelete={handleDateDelete}
-      />
+      <TimelineSection dates={dates} onAdd={handleDateCreate} onDelete={handleDateDelete} />
 
       <MusicSection
         tracks={tracks}
@@ -280,20 +259,17 @@ export default function AppPage() {
         <p>Fait avec <span style={{ color: '#d4607a' }}>♡</span> rien que pour vous · Notre Histoire</p>
       </footer>
 
-      <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
+      <Lightbox
+        src={lightbox?.src ?? null}
+        mediaType={lightbox?.type}
+        onClose={() => setLightbox(null)}
+      />
 
       {showSetup && (
-        <CoupleSetupModal
-          onComplete={handleSetupComplete}
-          onClose={() => setShowSetup(false)}
-        />
+        <CoupleSetupModal onComplete={handleSetupComplete} onClose={() => setShowSetup(false)} />
       )}
-
       {showInvite && couple && (
-        <InviteModal
-          coupleId={couple.id}
-          onClose={() => setShowInvite(false)}
-        />
+        <InviteModal coupleId={couple.id} onClose={() => setShowInvite(false)} />
       )}
     </>
   );

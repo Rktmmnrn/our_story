@@ -14,7 +14,7 @@ export default function QuotesSection({ quotes, onCreate, onToggleFav, onDelete 
   const [showFavOnly, setShowFavOnly] = useState(false);
   const [headerRef, headerVisible] = useIntersection({ threshold: 0.15 });
 
-  const displayed = showFavOnly ? quotes.filter((q) => q.is_favorite) : quotes;
+  const displayed = showFavOnly ? quotes.filter(q => q.is_favorite) : quotes;
 
   return (
     <section id="citations" className="quotes-section">
@@ -35,7 +35,7 @@ export default function QuotesSection({ quotes, onCreate, onToggleFav, onDelete 
           className={`quotes-filter-btn ${showFavOnly ? 'active' : ''}`}
           onClick={() => setShowFavOnly(true)}
         >
-          ♡ Favoris ({quotes.filter((q) => q.is_favorite).length})
+          ♥ Favoris ({quotes.filter(q => q.is_favorite).length})
         </button>
       </div>
 
@@ -45,7 +45,7 @@ export default function QuotesSection({ quotes, onCreate, onToggleFav, onDelete 
         </div>
       ) : (
         <div className="quotes-grid">
-          {displayed.map((q) => (
+          {displayed.map(q => (
             <QuoteCard
               key={q.id}
               quote={q}
@@ -88,16 +88,28 @@ function QuoteCard({ quote, onToggleFav, onDelete }: {
       <div className="quote-mark">"</div>
       <p className="quote-text">{quote.text}</p>
       {quote.author && <div className="quote-author">— {quote.author}</div>}
+
       <div className={`quote-actions ${hover ? 'visible' : ''}`}>
         <button
           className={`quote-fav-btn ${quote.is_favorite ? 'active' : ''}`}
           onClick={onToggleFav}
           title={quote.is_favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
         >
-          {quote.is_favorite ? '♡' : '♡'}
+          {/* ♥ rempli si favori, ♡ vide sinon — visuellement distincts */}
+          {quote.is_favorite ? '♥' : '♡'}
         </button>
         <button className="quote-del-btn" onClick={onDelete} title="Supprimer">✕</button>
       </div>
+
+      {/* Badge favori toujours visible sur la carte */}
+      {quote.is_favorite && (
+        <div style={{
+          position: 'absolute', top: 12, left: 12,
+          color: 'var(--rose-deep)', fontSize: 14,
+        }}>
+          ♥
+        </div>
+      )}
     </div>
   );
 }
@@ -111,14 +123,14 @@ function AddQuoteModal({ onSave, onClose }: {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-box" onClick={e => e.stopPropagation()}>
         <h3 className="modal-title">✦ Nouvelle citation</h3>
         <div className="modal-field">
           <label>Citation *</label>
           <textarea
             placeholder="Il y a toi, et puis il y a tout le reste..."
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={e => setText(e.target.value)}
             rows={4}
           />
         </div>
@@ -127,7 +139,7 @@ function AddQuoteModal({ onSave, onClose }: {
           <input
             placeholder="Anonyme, ou votre prénom..."
             value={author}
-            onChange={(e) => setAuthor(e.target.value)}
+            onChange={e => setAuthor(e.target.value)}
           />
         </div>
         <div className="modal-actions">
