@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/authStore';
@@ -16,8 +16,6 @@ import CoupleSetupModal from '../components/couple/CoupleSetupModal';
 import InviteModal from '../components/couple/InviteModal';
 import Lightbox from '../components/ui/Lightbox';
 
-type Section = 'hero' | 'galerie' | 'timeline' | 'musique' | 'citations' | 'message';
-
 export default function AppPage() {
   const navigate = useNavigate();
   const { user, logout, setCouple } = useAuthStore();
@@ -33,6 +31,22 @@ export default function AppPage() {
   const [showInvite, setShowInvite] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTrackId, setActiveTrackId] = useState<string | null>(null);
+
+  // Suivi des uploads en cours pour bloquer le refresh navigateur
+  const uploadCountRef = useRef(0);
+
+  // Bloquer la fermeture/refresh pendant un upload
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (uploadCountRef.current > 0) {
+        e.preventDefault();
+        e.returnValue = 'Des uploads sont en cours. Voulez-vous vraiment quitter ?';
+        return e.returnValue;
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, []);
 
   // Redirect admin
   useEffect(() => {
@@ -54,7 +68,7 @@ export default function AppPage() {
           quotesApi.list(),
         ]);
         setTimer(t);
-        setPhotos(mediaRes.data.filter((m) => m.media_type === 'photo'));
+        setPhotos(mediaRes.data.filter(m => m.media_type === 'photo'));
         setTracks(musicRes);
         setDates(datesRes);
         setQuotes(quotesRes);
@@ -84,24 +98,45 @@ export default function AppPage() {
     } catch { /* ignore */ }
   };
 
-  const handlePhotoUpload = useCallback(async (files: File[]) => {
+  // Upload avec progression et protection contre le refresh
+  const handlePhotoUpload = useCallback(async (
+    files: File[],
+    onProgress: (file: File, percent: number) => void,
+  ) => {
+    uploadCountRef.current += files.length;
     const toastId = toast.loading(`Upload de ${files.length} photo(s)...`);
+
     try {
-      for (const file of files) {
-        await mediaApi.upload(file, 'photo');
+      // Upload en parallèle (max 3 simultanés pour ne pas saturer)
+      const BATCH = 3;
+      for (let i = 0; i < files.length; i += BATCH) {
+        const batch = files.slice(i, i + BATCH);
+        await Promise.all(
+          batch.map(file =>
+            mediaApi.upload(
+              file,
+              'photo',
+              undefined,
+              (percent) => onProgress(file, percent),
+            ).finally(() => {
+              uploadCountRef.current = Math.max(0, uploadCountRef.current - 1);
+            })
+          )
+        );
       }
       const res = await mediaApi.list(1, 50);
-      setPhotos(res.data.filter((m) => m.media_type === 'photo'));
+      setPhotos(res.data.filter(m => m.media_type === 'photo'));
       toast.success('Photos ajoutées ♡', { id: toastId });
     } catch {
       toast.error('Erreur lors de l\'upload', { id: toastId });
+      uploadCountRef.current = 0;
     }
   }, []);
 
   const handlePhotoDelete = useCallback(async (id: string) => {
     try {
       await mediaApi.delete(id);
-      setPhotos((prev) => prev.filter((p) => p.id !== id));
+      setPhotos(prev => prev.filter(p => p.id !== id));
       toast.success('Photo supprimée');
     } catch {
       toast.error('Impossible de supprimer');
@@ -110,19 +145,27 @@ export default function AppPage() {
 
   const handleMusicUpload = useCallback(async (file: File, title: string, artist?: string) => {
     const toastId = toast.loading('Upload en cours...');
+    uploadCountRef.current += 1;
     try {
-      const track = await musicApi.upload(file, title, artist);
-      setTracks((prev) => [track, ...prev]);
+      const track = await musicApi.upload(file, title, artist, (percent) => {
+        // Mise à jour du toast avec le pourcentage
+        if (percent < 100) {
+          toast.loading(`Upload ${percent}%...`, { id: toastId });
+        }
+      });
+      setTracks(prev => [track, ...prev]);
       toast.success('Musique ajoutée ♡', { id: toastId });
     } catch {
       toast.error('Erreur lors de l\'upload audio', { id: toastId });
+    } finally {
+      uploadCountRef.current = Math.max(0, uploadCountRef.current - 1);
     }
   }, []);
 
   const handleMusicDelete = useCallback(async (id: string) => {
     try {
       await musicApi.delete(id);
-      setTracks((prev) => prev.filter((t) => t.id !== id));
+      setTracks(prev => prev.filter(t => t.id !== id));
       toast.success('Piste supprimée');
     } catch {
       toast.error('Impossible de supprimer');
@@ -145,7 +188,7 @@ export default function AppPage() {
   const handleDateDelete = useCallback(async (id: string) => {
     try {
       await datesApi.delete(id);
-      setDates((prev) => prev.filter((d) => d.id !== id));
+      setDates(prev => prev.filter(d => d.id !== id));
       toast.success('Moment supprimé');
     } catch {
       toast.error('Impossible de supprimer');
@@ -166,7 +209,7 @@ export default function AppPage() {
   const handleQuoteToggleFav = useCallback(async (id: string, current: boolean) => {
     try {
       await quotesApi.update(id, { is_favorite: !current });
-      setQuotes((prev) => prev.map((q) => q.id === id ? { ...q, is_favorite: !current } : q));
+      setQuotes(prev => prev.map(q => q.id === id ? { ...q, is_favorite: !current } : q));
     } catch {
       toast.error('Erreur');
     }
@@ -175,7 +218,7 @@ export default function AppPage() {
   const handleQuoteDelete = useCallback(async (id: string) => {
     try {
       await quotesApi.delete(id);
-      setQuotes((prev) => prev.filter((q) => q.id !== id));
+      setQuotes(prev => prev.filter(q => q.id !== id));
       toast.success('Citation supprimée');
     } catch {
       toast.error('Impossible de supprimer');
@@ -198,7 +241,7 @@ export default function AppPage() {
         couple={couple}
         onLogout={handleLogout}
         onInvite={() => setShowInvite(true)}
-        onCoupleUpdated={(c) => setCoupleLocal(c)}
+        onCoupleUpdated={c => setCoupleLocal(c)}
       />
 
       <HeroSection couple={couple} timer={timer} user={user} />
@@ -207,7 +250,7 @@ export default function AppPage() {
         photos={photos}
         onUpload={handlePhotoUpload}
         onDelete={handlePhotoDelete}
-        onLightbox={(id) => setLightboxSrc(mediaApi.getFileUrl(id))}
+        onLightbox={id => setLightboxSrc(mediaApi.getFileUrl(id))}
       />
 
       <TimelineSection

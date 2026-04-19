@@ -7,8 +7,7 @@ import type {
 
 const BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
-// ── Auth event bus — évite l'import circulaire avec authStore ──
-// authStore s'abonne à ces événements au démarrage
+// ── Auth event bus ────────────────────────────────────────────────────────────
 type AuthEventType = 'logout:expired' | 'logout:refresh_failed' | 'token:refreshed';
 type AuthEventHandler = (payload?: { access_token?: string; refresh_token?: string }) => void;
 const authListeners = new Map<AuthEventType, AuthEventHandler[]>();
@@ -27,27 +26,27 @@ export const authEvents = {
   },
 };
 
-// ── Retry config ─────────────────────────────────────────────
+// ── Retry config ──────────────────────────────────────────────────────────────
 const MAX_RETRIES = 3;
 const RETRY_CODES = [408, 429, 500, 502, 503, 504];
 interface RetryConfig extends InternalAxiosRequestConfig { _retry?: boolean; _retryCount?: number; }
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-// ── Instance Axios ───────────────────────────────────────────
+// ── Instance Axios ────────────────────────────────────────────────────────────
 const api = axios.create({
   baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
   timeout: 30000,
 });
 
-// ── Request interceptor ──────────────────────────────────────
+// ── Request interceptor ───────────────────────────────────────────────────────
 api.interceptors.request.use(config => {
   const token = localStorage.getItem('access_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
-// ── Response interceptor ─────────────────────────────────────
+// ── Response interceptor ──────────────────────────────────────────────────────
 let isRefreshing = false;
 let failedQueue: Array<{ resolve: (v?: unknown) => void; reject: (e?: unknown) => void }> = [];
 const processQueue = (error: unknown, token: string | null = null) => {
@@ -61,7 +60,6 @@ api.interceptors.response.use(
     const original = error.config as RetryConfig;
     if (!original) return Promise.reject(error);
 
-    // ── 401 → tentative de refresh ───────────────────────────
     if (error.response?.status === 401 && !original._retry) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
@@ -103,7 +101,6 @@ api.interceptors.response.use(
       }
     }
 
-    // ── Retry sur erreurs réseau / 5xx ───────────────────────
     const retryCount = original._retryCount || 0;
     const noResponse = !error.response && !!error.message;
     const retryStatus = error.response && RETRY_CODES.includes(error.response.status);
@@ -116,6 +113,61 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// ── Upload XHR avec progression réelle ────────────────────────────────────────
+/**
+ * Upload un fichier avec suivi de progression réel (0–100%).
+ * Utilise XMLHttpRequest pour avoir accès aux events de progression.
+ */
+export function uploadWithProgress(
+  endpoint: string,
+  formData: FormData,
+  onProgress?: (percent: number) => void,
+  signal?: AbortSignal,
+): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const token = localStorage.getItem('access_token');
+
+    xhr.open('POST', `${BASE_URL}${endpoint}`);
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+
+    // Progression upload
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable && onProgress) {
+        const percent = Math.round((e.loaded / e.total) * 100);
+        onProgress(percent);
+      }
+    });
+
+    xhr.addEventListener('load', () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          resolve(JSON.parse(xhr.responseText));
+        } catch {
+          resolve(xhr.responseText);
+        }
+      } else {
+        try {
+          const err = JSON.parse(xhr.responseText);
+          reject(new Error(err?.detail || `HTTP ${xhr.status}`));
+        } catch {
+          reject(new Error(`HTTP ${xhr.status}`));
+        }
+      }
+    });
+
+    xhr.addEventListener('error', () => reject(new Error('Erreur réseau lors de l\'upload')));
+    xhr.addEventListener('abort', () => reject(new Error('Upload annulé')));
+
+    // Support AbortController
+    if (signal) {
+      signal.addEventListener('abort', () => xhr.abort());
+    }
+
+    xhr.send(formData);
+  });
+}
 
 // ============================================================
 //  AUTH
@@ -183,48 +235,60 @@ export const coupleApi = {
 };
 
 // ============================================================
-//  MEDIA
+//  MEDIA — upload avec progression
 // ============================================================
 export const mediaApi = {
   list: async (page = 1, per_page = 50): Promise<PaginatedResponse<MediaItem>> => {
     const { data } = await api.get<PaginatedResponse<MediaItem>>('/media/', { params: { page, per_page } });
     return data;
   },
-  upload: async (file: File, media_type: 'photo' | 'video', opts?: { title?: string; description?: string; taken_at?: string }) => {
+  /**
+   * Upload avec barre de progression.
+   * @param onProgress callback (0–100)
+   * @param signal AbortController.signal pour annuler
+   */
+  upload: async (
+    file: File,
+    media_type: 'photo' | 'video',
+    opts?: { title?: string; description?: string; taken_at?: string },
+    onProgress?: (percent: number) => void,
+    signal?: AbortSignal,
+  ) => {
     const form = new FormData();
     form.append('file', file);
     form.append('media_type', media_type);
     if (opts?.title) form.append('title', opts.title);
     if (opts?.description) form.append('description', opts.description);
     if (opts?.taken_at) form.append('taken_at', opts.taken_at);
-    const { data } = await api.post<ApiResponse<{ id: string }>>('/media/', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 120000,
-    });
-    return data.data;
+
+    const result = await uploadWithProgress('/media/', form, onProgress, signal) as ApiResponse<{ id: string }>;
+    return result.data;
   },
   delete: async (id: string): Promise<void> => { await api.delete(`/media/${id}`); },
   getFileUrl: (id: string) => `${BASE_URL}/media/${id}/file`,
 };
 
 // ============================================================
-//  MUSIC
+//  MUSIC — upload avec progression
 // ============================================================
 export const musicApi = {
   list: async (): Promise<MusicTrack[]> => {
     const { data } = await api.get<ApiResponse<MusicTrack[]>>('/music/');
     return data.data;
   },
-  upload: async (file: File, title: string, artist?: string): Promise<MusicTrack> => {
+  upload: async (
+    file: File,
+    title: string,
+    artist?: string,
+    onProgress?: (percent: number) => void,
+  ): Promise<MusicTrack> => {
     const form = new FormData();
     form.append('file', file);
     form.append('title', title);
     if (artist) form.append('artist', artist);
-    const { data } = await api.post<ApiResponse<MusicTrack>>('/music/', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 120000,
-    });
-    return data.data;
+
+    const result = await uploadWithProgress('/music/', form, onProgress) as ApiResponse<MusicTrack>;
+    return result.data;
   },
   update: async (id: string, updates: { title?: string; artist?: string; is_active?: boolean }) => {
     const { data } = await api.patch(`/music/${id}`, null, { params: updates });

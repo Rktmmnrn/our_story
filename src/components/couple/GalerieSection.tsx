@@ -1,11 +1,11 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import { useIntersection } from '../../hooks/useIntersection';
 import type { MediaItem } from '../../types';
 import { mediaApi } from '../../services/api';
 
 interface GalerieSectionProps {
   photos: MediaItem[];
-  onUpload: (files: File[]) => void;
+  onUpload: (files: File[], onProgress: (file: File, percent: number) => void) => void;
   onDelete: (id: string) => void;
   onLightbox: (id: string) => void;
 }
@@ -20,17 +20,38 @@ export default function GalerieSection({ photos, onUpload, onDelete, onLightbox 
   const [headerRef, headerVisible] = useIntersection({ threshold: 0.15 });
   const placeholders = Math.max(6 - photos.length, 0);
 
+  // Map filename → progress (0-100)
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+
+  const handleProgress = useCallback((file: File, percent: number) => {
+    setUploadProgress(prev => ({ ...prev, [file.name]: percent }));
+  }, []);
+
   const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
-    if (files.length) onUpload(files);
+    if (files.length) {
+      // Initialiser la progression pour chaque fichier
+      const init: Record<string, number> = {};
+      files.forEach(f => { init[f.name] = 0; });
+      setUploadProgress(prev => ({ ...prev, ...init }));
+      onUpload(files, handleProgress);
+    }
     e.target.value = '';
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith('image/'));
-    if (files.length) onUpload(files);
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+    if (files.length) {
+      const init: Record<string, number> = {};
+      files.forEach(f => { init[f.name] = 0; });
+      setUploadProgress(prev => ({ ...prev, ...init }));
+      onUpload(files, handleProgress);
+    }
   };
+
+  // Uploads en cours
+  const activeUploads = Object.entries(uploadProgress).filter(([, p]) => p < 100);
 
   return (
     <div id="galerie" className="galerie-section">
@@ -40,9 +61,29 @@ export default function GalerieSection({ photos, onUpload, onDelete, onLightbox 
         <div className="divider" />
       </div>
 
+      {/* Barre de progression globale des uploads */}
+      {activeUploads.length > 0 && (
+        <div className="upload-progress-container">
+          {activeUploads.map(([name, percent]) => (
+            <div key={name} className="upload-progress-item">
+              <div className="upload-progress-header">
+                <span className="upload-filename">{name.length > 30 ? name.slice(0, 27) + '…' : name}</span>
+                <span className="upload-percent">{percent}%</span>
+              </div>
+              <div className="upload-progress-bar">
+                <div
+                  className="upload-progress-fill"
+                  style={{ width: `${percent}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div
         className="photo-grid"
-        onDragOver={(e) => e.preventDefault()}
+        onDragOver={e => e.preventDefault()}
         onDrop={handleDrop}
       >
         {photos.map((photo, i) => (
@@ -93,7 +134,7 @@ function PhotoCard({ photo, caption, index, onLightbox, onDelete }: {
         <span className="photo-caption">{photo.title || caption}</span>
         <button
           className="photo-delete-btn"
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          onClick={e => { e.stopPropagation(); onDelete(); }}
           title="Supprimer"
         >
           ✕
