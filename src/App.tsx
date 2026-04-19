@@ -8,9 +8,9 @@ import LandingPage from './pages/LandingPage';
 import ProtectedRoute from './components/ProtectedRoute';
 
 // ── Lazy loading des pages lourdes ───────────────────────────
-const AppPage   = lazy(() => import('./pages/AppPage'));
+const AppPage = lazy(() => import('./pages/AppPage'));
 const AdminPage = lazy(() => import('./pages/AdminPage'));
-const JoinPage  = lazy(() => import('./pages/JoinPage'));
+const JoinPage = lazy(() => import('./pages/JoinPage'));
 
 // ── Fallback élégant ─────────────────────────────────────────
 function RomanticFallback() {
@@ -25,16 +25,17 @@ export default function App() {
   const { isAuthenticated, user, fetchMe } = useAuthStore();
   useNetworkStatus(); // active les toasts online/offline
 
+  // authStore.fetchMe() gère lui-même le refresh si l'access token est expiré.
   useEffect(() => {
-    if (isAuthenticated && !user) fetchMe();
-  }, [isAuthenticated, user, fetchMe]);
+    const hasTokens =
+      !!localStorage.getItem('access_token') ||
+      !!localStorage.getItem('refresh_token');
 
-  // Préchargement silencieux si token présent
-  useEffect(() => {
-    if (localStorage.getItem('access_token')) {
-      import('./pages/AppPage').catch(() => {});
+    if (hasTokens && !user) {
+      fetchMe();
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // ← tableau vide : une seule fois au montage, pas de boucle
 
   // Gestion du token d'invitation en attente
   useEffect(() => {
@@ -63,7 +64,7 @@ export default function App() {
               letterSpacing: '0.05em',
             },
             success: { iconTheme: { primary: '#d4607a', secondary: '#fdf8f2' } },
-            error:   { iconTheme: { primary: '#c0392b', secondary: '#fdf8f2' } },
+            error: { iconTheme: { primary: '#c0392b', secondary: '#fdf8f2' } },
           }}
         />
         <Routes>

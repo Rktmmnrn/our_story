@@ -8,11 +8,16 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children, adminOnly = false }: ProtectedRouteProps) {
-  const { isAuthenticated, user, fetchMe, isLoading } = useAuthStore();
+  const { isAuthenticated, user, isLoading } = useAuthStore();
 
-  useEffect(() => {
-    if (isAuthenticated && !user) fetchMe();
-  }, [isAuthenticated, user, fetchMe]);
+  // Tokens présents mais profil pas encore chargé → on attend
+  if (isLoading || (isAuthenticated && !user)) {
+    return (
+      <div className="page-loading">
+        <div className="loading-heart">♡</div>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) return <Navigate to="/" replace />;
 

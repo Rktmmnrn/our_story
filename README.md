@@ -14,31 +14,48 @@ npm run dev
 ## 🏗️ Architecture
 
 ```
-src/
-├── pages/
-│   ├── LandingPage.tsx     # Page d'accueil publique
-│   ├── AppPage.tsx         # Dashboard couple (protégé)
-│   ├── AdminPage.tsx       # Dashboard admin (protégé)
-│   └── JoinPage.tsx        # Page de rejoindre via token
-├── components/
-│   ├── auth/AuthModal.tsx  # Modal login/register
-│   ├── layout/AppNavbar.tsx
-│   ├── couple/             # Sections du dashboard couple
-│   │   ├── HeroSection.tsx
-│   │   ├── GalerieSection.tsx
-│   │   ├── TimelineSection.tsx
-│   │   ├── MusicSection.tsx
-│   │   ├── QuotesSection.tsx
-│   │   ├── MessageSection.tsx
-│   │   ├── CoupleSetupModal.tsx
-│   │   └── InviteModal.tsx
-│   ├── ui/Lightbox.tsx
-│   └── ProtectedRoute.tsx
-├── services/api.ts          # Tous les appels API
-├── store/authStore.ts       # Zustand store auth
-├── hooks/useIntersection.ts
-├── types/index.ts
-└── styles/index.css
+notre-histoire/
+├── src/
+│   ├── components/          # Composants réutilisables
+│   │   ├── admin/
+│   │   │   └── AdminUsersTable.tsx
+│   │   ├── auth/            # AuthModal (login/register)
+│   │   │   ├── AuthModal.tsx
+│   │   │   └── ProfileModal.tsx
+│   │   ├── couple/          # Composants du dashboard couple
+│   │   │   ├── HeroSection.tsx       # Section héros (photo + date)
+│   │   │   ├── GalerieSection.tsx    # Galerie photos/vidéos
+│   │   │   ├── TimelineSection.tsx   # Chronologie des événements
+│   │   │   ├── MusicSection.tsx      # Playlist partagée
+│   │   │   ├── QuotesSection.tsx     # Citations romantiques
+│   │   │   ├── MessageSection.tsx    # Messages entre partenaires
+│   │   │   ├── CoupleSetupModal.tsx  # Configuration du couple
+│   │   │   └── InviteModal.tsx       # Invitation partenaire
+│   │   ├── layout/          # Composants de mise en page
+│   │   │   ├── AppNavbar.tsx         # Navigation principale
+│   │   ├── ui/              # Composants UI génériques
+│   │   │   ├── Lightbox.tsx          # Visionneuse média
+│   │   └── ProtectedRoute.tsx        # Route protégée par auth
+│   │   └── ErrorBoundary.tsx        # Route protégée par auth
+│   ├── pages/               # Pages principales
+│   │   ├── LandingPage.tsx  # Page d'accueil publique
+│   │   ├── AppPage.tsx      # Dashboard couple (protégé)
+│   │   ├── AdminPage.tsx    # Dashboard admin (protégé)
+│   │   └── JoinPage.tsx     # Rejoindre via token
+│   ├── services/            # Couche API
+│   │   ├── api.ts           # Instance Axios + intercepteurs
+│   ├── store/               # State management Zustand
+│   │   ├── authStore.ts     # Store authentification
+│   ├── hooks/               # Hooks personnalisés
+│   │   ├── useIntersection.ts    # Intersection Observer
+│   │   ├── useNetworkStatus.ts
+│   ├── types/               # Types TypeScript
+│   │   └── index.ts         # Types globaux
+│   ├── styles/
+│   │   └── index.css
+│   ├── App.tsx              # Routeur principal
+│   ├── main.tsx             # Point d'entrée
+│   └── vite-env.d.ts
 ```
 
 ## 🔐 Flux d'authentification
@@ -52,14 +69,6 @@ src/
 ## 🛠️ Corrections backend appliquées
 
 Voir les fichiers `BACKEND_PATCH_*.py` pour les méthodes CRUD manquantes à ajouter.
-
-### Erreurs corrigées :
-1. `crud_user.count_active()` — méthode inexistante → ajoutée
-2. `crud_user.list_recent()` — méthode inexistante → ajoutée
-3. `crud_couple.count_active()` — méthode inexistante → ajoutée
-4. `crud_media_item.list_all()` — méthode inexistante → ajoutée
-5. `selectinload(MediaItem.uploaded_by)` → corriger en `selectinload(MediaItem.uploader)`
-6. `requirements.txt` ligne cassée (`psycopg2-binary==2.9.9aiosqlite==0.20.0`) → séparée
 
 ## 📦 Déploiement
 

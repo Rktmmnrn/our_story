@@ -15,11 +15,11 @@ interface AuthState {
   couple: Couple | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login:    (email: string, password: string) => Promise<void>;
-  logout:   (reason?: 'manual' | 'expired' | 'refresh_failed') => Promise<void>;
-  fetchMe:  () => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  logout: (reason?: 'manual' | 'expired' | 'refresh_failed') => Promise<void>;
+  fetchMe: () => Promise<void>;
   setCouple: (couple: Couple | null) => void;
-  setUser:   (user: User) => void;
+  setUser: (user: User) => void;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => {
@@ -57,7 +57,9 @@ export const useAuthStore = create<AuthState>((set, get) => {
     user: null,
     couple: null,
     isLoading: false,
-    isAuthenticated: !!localStorage.getItem('access_token'),
+    isAuthenticated: !!(
+      localStorage.getItem('access_token') || !!localStorage.getItem('refresh_token')
+    ),
 
     login: async (email, password) => {
       set({ isLoading: true });
@@ -91,12 +93,27 @@ export const useAuthStore = create<AuthState>((set, get) => {
     },
 
     fetchMe: async () => {
-      const token = localStorage.getItem('access_token');
-      if (!token) {
+      const accessToken = localStorage.getItem('access_token');
+      const refreshToken = localStorage.getItem('refresh_token');
+      if (!accessToken && refreshToken) {
         set({ user: null, isAuthenticated: false, isLoading: false });
         return;
       }
       set({ isLoading: true });
+
+      if (!accessToken && refreshToken) {
+        try {
+          const tokens = await authApi.refresh(refreshToken);
+          localStorage.setItem('access_token', tokens.access_token);
+          localStorage.setItem('refresh_token', tokens.refresh_token);
+        } catch {
+          // Refresh token invalide/expiré → déconnexion silencieuse
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          set({ user: null, isAuthenticated: false, isLoading: false });
+          return;
+        }
+      }
       try {
         const user = await authApi.me();
         set({ user, isAuthenticated: true, isLoading: false });
@@ -108,6 +125,6 @@ export const useAuthStore = create<AuthState>((set, get) => {
     },
 
     setCouple: couple => set({ couple }),
-    setUser:   user   => set({ user }),
+    setUser: user => set({ user }),
   };
 });

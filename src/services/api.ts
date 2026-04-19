@@ -181,6 +181,14 @@ export const authApi = {
     const { data } = await api.post<ApiResponse<AuthTokens>>('/auth/login', null, { params: { email, password } });
     return data.data;
   },
+  refresh: async (refresh_token: string): Promise<AuthTokens> => {
+    const { data } = await axios.post<ApiResponse<AuthTokens>>(
+      `${BASE_URL}/auth/refresh`,
+      null,
+      { params: { refresh_token } },
+    );
+    return data.data;
+  },
   logout: async (refresh_token: string): Promise<void> => {
     await api.post('/auth/logout', null, { params: { refresh_token } });
   },
