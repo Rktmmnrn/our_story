@@ -26,7 +26,7 @@ export default function AppPage() {
   const [tracks, setTracks] = useState<MusicTrack[]>([]);
   const [dates, setDates] = useState<SpecialDate[]>([]);
   const [quotes, setQuotes] = useState<Quote[]>([]);
-  const [lightbox, setLightbox] = useState<{ src: string; type: 'photo' | 'video' } | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [showSetup, setShowSetup] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -138,8 +138,9 @@ export default function AppPage() {
   }, []);
 
   const handleLightbox = useCallback((id: string, type: 'photo' | 'video') => {
-    setLightbox({ src: mediaApi.getFileUrl(id), type });
-  }, []);
+    const index = mediaItems.findIndex(m => m.id === id);
+    if (index !== -1) setLightboxIndex(index);
+  }, [mediaItems]);
 
   const handleMusicUpload = useCallback(async (file: File, title: string, artist?: string) => {
     const toastId = toast.loading('Upload en cours...');
@@ -257,11 +258,17 @@ export default function AppPage() {
         <p>Fait avec <span style={{ color: '#d4607a' }}>♡</span> rien que pour vous · Notre Histoire</p>
       </footer>
 
-      <Lightbox
-        src={lightbox?.src ?? null}
-        mediaType={lightbox?.type}
-        onClose={() => setLightbox(null)}
-      />
+      {lightboxIndex !== null && (
+        <Lightbox
+          src={mediaApi.getFileUrl(mediaItems[lightboxIndex].id)}
+          mediaType={mediaItems[lightboxIndex].media_type}
+          onClose={() => setLightboxIndex(null)}
+          hasPrev={lightboxIndex > 0}
+          hasNext={lightboxIndex < mediaItems.length - 1}
+          onPrev={() => setLightboxIndex(i => i! - 1)}
+          onNext={() => setLightboxIndex(i => i! + 1)}
+        />
+      )}
 
       {showSetup && (
         <CoupleSetupModal onComplete={handleSetupComplete} onClose={() => setShowSetup(false)} />
