@@ -39,10 +39,6 @@ export default function GalerieSection({ photos, onUpload, onDelete, onLightbox 
   }, []);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    const init: Record<string, number> = {};
-    acceptedFiles.forEach(f => { init[f.name] = 0; });
-    setUploadProgress(prev => ({ ...prev, ...init }));
-
     const filesToUpload = await Promise.all(
       acceptedFiles.map(file => compressImage(file))
     );
@@ -69,7 +65,7 @@ export default function GalerieSection({ photos, onUpload, onDelete, onLightbox 
         <div className="divider" />
       </div>
 
-      {/* {activeUploads.length > 0 && (
+      {activeUploads.length > 0 && (
         <div className="upload-progress-container">
           {activeUploads.map(([name, percent]) => (
             <div key={name} className="upload-progress-item">
@@ -85,7 +81,7 @@ export default function GalerieSection({ photos, onUpload, onDelete, onLightbox 
             </div>
           ))}
         </div>
-      )} */}
+      )}
 
       <div
         {...getRootProps()}
