@@ -174,7 +174,7 @@ export function uploadWithProgress(
 // ============================================================
 export const authApi = {
   register: async (email: string, password: string, display_name: string): Promise<User> => {
-    const { data } = await api.post<ApiResponse<User>>('/auth/register', null, { params: { email, password, display_name } });
+    const { data } = await api.post<ApiResponse<User>>('/auth/register', new URLSearchParams({ email, password, display_name }));
     return data.data;
   },
   login: async (email: string, password: string): Promise<AuthTokens> => {
@@ -184,13 +184,12 @@ export const authApi = {
   refresh: async (refresh_token: string): Promise<AuthTokens> => {
     const { data } = await axios.post<ApiResponse<AuthTokens>>(
       `${BASE_URL}/auth/refresh`,
-      null,
-      { params: { refresh_token } },
+      new URLSearchParams({ refresh_token }),
     );
     return data.data;
   },
   logout: async (refresh_token: string): Promise<void> => {
-    await api.post('/auth/logout', null, { params: { refresh_token } });
+    await api.post('/auth/logout', new URLSearchParams({ refresh_token }));
   },
   me: async (): Promise<User> => {
     const { data } = await api.get<ApiResponse<User>>('/auth/me');
