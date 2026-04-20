@@ -76,7 +76,9 @@ export default function GalerieSection({ photos, onUpload, onDelete, onLightbox 
                 <span className="upload-percent">{percent}%</span>
               </div>
               <div className="upload-progress-bar">
-                <div className="upload-progress-fill" style={{ width: `${percent}%` }} />
+                <div className="upload-progress-fill"
+                  style={{ width: `${percent}%` }}
+                />
               </div>
             </div>
           ))}

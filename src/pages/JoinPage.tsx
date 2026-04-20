@@ -11,6 +11,16 @@ export default function JoinPage() {
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [error, setError] = useState('');
 
+  // useEffect(() => {
+  //   if (isAuthenticated && user) {
+  //     const pending = sessionStorage.getItem('pending_join_token');
+  //     if (pending) {
+  //       sessionStorage.removeItem('pending_join_token');
+  //       window.location.href = `/join/${pending}`;  // ✅ Ça c'est correct
+  //     }
+  //   }
+  // }, [isAuthenticated, user]);
+
   useEffect(() => {
     if (!token) { navigate('/'); return; }
     if (!isAuthenticated) {
