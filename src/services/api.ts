@@ -178,7 +178,7 @@ export const authApi = {
     return data.data;
   },
   login: async (email: string, password: string): Promise<AuthTokens> => {
-    const { data } = await api.post<ApiResponse<AuthTokens>>('/auth/login', null, { params: { email, password } });
+    const { data } = await api.post<ApiResponse<AuthTokens>>('/auth/login', new URLSearchParams({ email, password }));
     return data.data;
   },
   refresh: async (refresh_token: string): Promise<AuthTokens> => {
