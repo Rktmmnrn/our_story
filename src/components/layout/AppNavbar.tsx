@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { User, Couple } from '../../types';
 import ProfileModal from '../auth/ProfileModal';
 import CoupleSettingsModal from '../couple/CoupleSettingsModal';
@@ -20,10 +20,57 @@ const NAV_LINKS = [
   { id: 'message', label: 'Message' },
 ];
 
+function useAuthImage(src: string | null | undefined) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const prevUrl = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!src) {
+      setBlobUrl(null);
+      return;
+    }
+
+    let cancelled = false;
+    const token = localStorage.getItem('access_token');
+    const absoluteSrc = src.startsWith('http') ? src : `${window.location.origin}${src}`;
+
+    fetch(absoluteSrc, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.blob();
+      })
+      .then((blob) => {
+        if (cancelled) return;
+        const url = URL.createObjectURL(blob);
+        if (prevUrl.current) URL.revokeObjectURL(prevUrl.current);
+        prevUrl.current = url;
+        setBlobUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setBlobUrl(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [src]);
+
+  useEffect(() => {
+    return () => {
+      if (prevUrl.current) URL.revokeObjectURL(prevUrl.current);
+    };
+  }, []);
+
+  return blobUrl;
+}
+
 export default function AppNavbar({ user, couple, onLogout, onInvite, onCoupleUpdated }: AppNavbarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showCoupleSettings, setShowCoupleSettings] = useState(false);
+  const avatarBlobUrl = useAuthImage(user?.avatar_url);
 
   const scrollTo = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
@@ -48,8 +95,8 @@ export default function AppNavbar({ user, couple, onLogout, onInvite, onCoupleUp
             <button className="nav-invite-btn" onClick={onInvite}>Inviter ♡</button>
           )}
           <div className="nav-avatar" onClick={() => setMenuOpen(!menuOpen)}>
-            {user?.avatar_url
-              ? <img src={user.avatar_url} alt={user.display_name} />
+            {avatarBlobUrl
+              ? <img src={avatarBlobUrl} alt={user?.display_name} />
               : <span>{user?.display_name?.[0]?.toUpperCase()}</span>
             }
           </div>

@@ -11,10 +11,11 @@ interface MusicSectionProps {
   onDelete: (id: string) => void;
 }
 
-async function fetchAudioBlob(url: string): Promise<string> {
+async function fetchAudioBlob(url: string, signal?: AbortSignal): Promise<string> {
   const token = localStorage.getItem('access_token');
   const res = await fetch(url, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
+    signal,
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const blob = await res.blob();
@@ -26,12 +27,12 @@ export default function MusicSection({ tracks, activeTrackId, onSetActive, onUpl
   const [headerRef, headerVisible] = useIntersection({ threshold: 0.15 });
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const blobUrlRef = useRef<string | null>(null);
+  const fetchAbortRef = useRef<AbortController | null>(null);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [loadingTrackId, setLoadingTrackId] = useState<string | null>(null);
 
-  // Créer l'élément audio une seule fois
   useEffect(() => {
     const audio = new Audio();
     audio.volume = 0.7;
@@ -46,11 +47,13 @@ export default function MusicSection({ tracks, activeTrackId, onSetActive, onUpl
     audio.addEventListener('ended', onEnded);
 
     return () => {
+      // Abort any in-flight fetch
+      fetchAbortRef.current?.abort();
       audio.pause();
       audio.removeEventListener('timeupdate', onTimeUpdate);
       audio.removeEventListener('loadedmetadata', onLoaded);
       audio.removeEventListener('ended', onEnded);
-      // Cleanup du blob URL
+      // Cleanup blob URL
       if (blobUrlRef.current) {
         URL.revokeObjectURL(blobUrlRef.current);
         blobUrlRef.current = null;
@@ -63,43 +66,47 @@ export default function MusicSection({ tracks, activeTrackId, onSetActive, onUpl
     const audio = audioRef.current;
     if (!audio) return;
 
-    // Pause si on reclique sur la piste active
     if (activeTrackId === id && isPlaying) {
       audio.pause();
       setIsPlaying(false);
       return;
     }
 
-    // Resume si on reclique sur la piste active en pause
     if (activeTrackId === id && !isPlaying) {
       await audio.play();
       setIsPlaying(true);
       return;
     }
 
-    // Nouvelle piste : charger le blob authentifié
+    // New track — abort any pending fetch first
+    fetchAbortRef.current?.abort();
+    const abortController = new AbortController();
+    fetchAbortRef.current = abortController;
+
     audio.pause();
     setIsPlaying(false);
     setLoadingTrackId(id);
     onSetActive(id);
 
     try {
-      // Révoquer l'ancien blob
       if (blobUrlRef.current) {
         URL.revokeObjectURL(blobUrlRef.current);
         blobUrlRef.current = null;
       }
 
-      const blobUrl = await fetchAudioBlob(musicApi.getFileUrl(id));
+      const blobUrl = await fetchAudioBlob(musicApi.getFileUrl(id), abortController.signal);
       blobUrlRef.current = blobUrl;
       audio.src = blobUrl;
       setProgress(0);
       setDuration(0);
       await audio.play();
       setIsPlaying(true);
-    } catch (err) {
-      console.error('Erreur lecture audio:', err);
-      onSetActive(null);
+    } catch (err: any) {
+      // AbortError is expected when switching tracks quickly — not a real error
+      if (err?.name !== 'AbortError') {
+        console.error('Erreur lecture audio:', err);
+        onSetActive(null);
+      }
     } finally {
       setLoadingTrackId(null);
     }
@@ -139,6 +146,7 @@ export default function MusicSection({ tracks, activeTrackId, onSetActive, onUpl
               onPlay={() => playTrack(track.id)}
               onDelete={() => {
                 if (activeTrackId === track.id) {
+                  fetchAbortRef.current?.abort();
                   audioRef.current?.pause();
                   onSetActive(null);
                   setIsPlaying(false);

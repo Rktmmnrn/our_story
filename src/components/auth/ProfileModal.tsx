@@ -9,11 +9,18 @@ interface ProfileModalProps {
   onClose: () => void;
 }
 
+function resolveAvatarUrl(avatarUrl: string | null): string | null {
+  return avatarUrl || null;
+}
+
 export default function ProfileModal({ user, onClose }: ProfileModalProps) {
   const { setUser } = useAuthStore();
   const [displayName, setDisplayName] = useState(user.display_name);
   const [loading, setLoading] = useState(false);
   const [avatarLoading, setAvatarLoading] = useState(false);
+  const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(
+    resolveAvatarUrl(user.avatar_url)
+  );
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleSaveName = async (e: React.FormEvent) => {
@@ -40,6 +47,7 @@ export default function ProfileModal({ user, onClose }: ProfileModalProps) {
       await authApi.uploadAvatar(file);
       const updated = await authApi.me();
       setUser(updated);
+      setLocalAvatarUrl(resolveAvatarUrl(updated.avatar_url));
       toast.success('Avatar mis à jour ♡');
     } catch {
       toast.error('Erreur lors de l\'upload');
@@ -48,6 +56,8 @@ export default function ProfileModal({ user, onClose }: ProfileModalProps) {
       e.target.value = '';
     }
   };
+
+  const avatarSrc = localAvatarUrl;
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -62,8 +72,8 @@ export default function ProfileModal({ user, onClose }: ProfileModalProps) {
           >
             {avatarLoading ? (
               <span className="spinner" />
-            ) : user.avatar_url ? (
-              <img src={user.avatar_url} alt={user.display_name} />
+            ) : avatarSrc ? (
+              <AvatarImage src={avatarSrc} alt={user.display_name} />
             ) : (
               <span>{user.display_name?.[0]?.toUpperCase()}</span>
             )}
@@ -111,4 +121,49 @@ export default function ProfileModal({ user, onClose }: ProfileModalProps) {
       </div>
     </div>
   );
+}
+
+function AvatarImage({ src, alt }: { src: string; alt: string }) {
+  const [blobUrl, setBlobUrl] = React.useState<string | null>(null);
+  const [error, setError] = React.useState(false);
+ 
+  React.useEffect(() => {
+    let cancelled = false;
+    const token = localStorage.getItem('access_token');
+ 
+    // Build absolute URL if relative
+    const absoluteSrc = src.startsWith('http') ? src : `${window.location.origin}${src}`;
+ 
+    fetch(absoluteSrc, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.blob();
+      })
+      .then((blob) => {
+        if (!cancelled) {
+          setBlobUrl(URL.createObjectURL(blob));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setError(true);
+      });
+ 
+    return () => {
+      cancelled = true;
+    };
+  }, [src]);
+ 
+  React.useEffect(() => {
+    return () => {
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
+  }, [blobUrl]);
+ 
+  if (error || !blobUrl) {
+    return <span style={{ fontSize: 28 }}>{alt?.[0]?.toUpperCase()}</span>;
+  }
+ 
+  return <img src={blobUrl} alt={alt} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />;
 }
