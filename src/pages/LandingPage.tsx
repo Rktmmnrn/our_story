@@ -11,7 +11,7 @@ const PETALS = Array.from({ length: 30 }, (_, i) => ({
   color: PETAL_COLORS[Math.floor(Math.random() * PETAL_COLORS.length)],
   duration: `${5 + Math.random() * 7}s`,
   delay: `${Math.random() * 6}s`,
-  size: `${8 + Math.random() * 10}px`,
+  size: `${14 + Math.random() * 16}px`,
   rotate: `${Math.random() * 360}deg`,
 }));
 

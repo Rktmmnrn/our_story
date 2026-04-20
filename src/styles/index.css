@@ -90,7 +90,7 @@ body {
   inset: 0;
   overflow: visible;         /* ← visible au lieu de hidden */
   pointer-events: none;
-  z-index: 1;                /* ← au dessus du fond, sous le contenu */
+  z-index: 10;                /* ← au dessus du fond, sous le contenu */
 }
 
 .petal {
@@ -100,6 +100,7 @@ body {
   opacity: 0;
   will-change: transform, opacity;
   animation: fall linear infinite;
+  filter: blur(0.5px);
 }
 
 @keyframes fall {
