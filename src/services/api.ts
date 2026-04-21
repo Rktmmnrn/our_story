@@ -173,12 +173,20 @@ export function uploadWithProgress(
 //  AUTH
 // ============================================================
 export const authApi = {
-  register: async (email: string, password: string, display_name: string): Promise<User> => {
-    const { data } = await api.post<ApiResponse<User>>('/auth/register', new URLSearchParams({ email, password, display_name }));
+  login: async (email: string, password: string): Promise<AuthTokens> => {
+    const { data } = await api.post<ApiResponse<AuthTokens>>('/auth/login', {
+      email,
+      password,
+    });
     return data.data;
   },
-  login: async (email: string, password: string): Promise<AuthTokens> => {
-    const { data } = await api.post<ApiResponse<AuthTokens>>('/auth/login', new URLSearchParams({ email, password }));
+
+  register: async (email: string, password: string, display_name: string): Promise<User> => {
+    const { data } = await api.post<ApiResponse<User>>('/auth/register', {
+      email,
+      password,
+      display_name,
+    });
     return data.data;
   },
   refresh: async (refresh_token: string): Promise<AuthTokens> => {
