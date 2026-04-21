@@ -25,7 +25,7 @@ const QUOTES = [
   'Tu es mon aventure préférée.',
   'Je t\'aime plus qu\'hier, moins que demain.',
   'Avec toi, même les lundis sont beaux.',
-  'Tu es ma chose préférée.',
+  'Je t\'aime.',
 ];
 
 export default function HeroSection({ couple, timer, user }: HeroSectionProps) {
