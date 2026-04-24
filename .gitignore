@@ -8,3 +8,4 @@ build
 .env.production
 .DS_Store
 *.log
+ANALYSE_PROJET.md

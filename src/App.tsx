@@ -6,6 +6,11 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
 import LandingPage from './pages/LandingPage';
 import ProtectedRoute from './components/ProtectedRoute';
+import Maintenance from './components/Maintenance';
+
+// ── Flag Maintenance ────────────────────────────────────────
+// ⚠️ Change à true pour activer la page de maintenance
+const MAINTENANCE_MODE = true;
 
 // ── Lazy loading des pages lourdes ───────────────────────────
 const AppPage = lazy(() => import('./pages/AppPage'));
@@ -67,6 +72,14 @@ export default function App() {
             error: { iconTheme: { primary: '#c0392b', secondary: '#fdf8f2' } },
           }}
         />
+
+        {/* Affiche Maintenance si mode ON et user (connecté mais pas admin) */}
+        {MAINTENANCE_MODE && isAuthenticated && user && user.role !== 'admin' && (
+          <Maintenance />
+        )}
+
+        {/* ── Routes - Toujours affichées (Landing toujours accessible) ────────────────── */}
+        {/* En maintenance, seuls les admins peuvent accéder aux routes protégées */}
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route
@@ -82,7 +95,11 @@ export default function App() {
             element={
               <Suspense fallback={<RomanticFallback />}>
                 <ProtectedRoute>
-                  <AppPage />
+                  {MAINTENANCE_MODE && user?.role !== 'admin' ? (
+                    <Maintenance />
+                  ) : (
+                    <AppPage />
+                  )}
                 </ProtectedRoute>
               </Suspense>
             }

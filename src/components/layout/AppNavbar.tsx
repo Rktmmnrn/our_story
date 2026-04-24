@@ -74,7 +74,7 @@ export default function AppNavbar({ user, couple, onLogout, onInvite, onCoupleUp
   const avatarBlobUrl = useAuthImage(user?.avatar_url);
 
   const scrollTo = (id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+    document.getElementById(id)?.scrollIntoView({ 'behavior': 'smooth' });
     setMenuOpen(false);
   };
 
