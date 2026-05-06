@@ -10,7 +10,7 @@ import Maintenance from './components/Maintenance';
 
 // ── Flag Maintenance ────────────────────────────────────────
 // ⚠️ Change à true pour activer la page de maintenance
-const MAINTENANCE_MODE = true;
+const MAINTENANCE_MODE = false;
 
 // ── Lazy loading des pages lourdes ───────────────────────────
 const AppPage = lazy(() => import('./pages/AppPage'));
